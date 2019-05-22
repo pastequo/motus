@@ -1,0 +1,5 @@
+motus-packr.go
+cli/dewinter/packrd
+
+target/
+lint/
