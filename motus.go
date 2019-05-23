@@ -20,6 +20,9 @@ import (
 // ErrInvalidArg is returned if the arguments are invalid.
 var ErrInvalidArg = errors.New("invalid argument")
 
+// ErrNoSound is returned if the method to play the sound timeouted once.
+var ErrNoSound = errors.New("failed to play sound")
+
 type position int8
 
 const (
@@ -28,11 +31,31 @@ const (
 	out
 )
 
+// DeWinter is the type to use to display text, motus (lingo) style.
+// It has a maxTimeout member that refers to the maxDuration to wait to play a single sound.
+type DeWinter struct {
+	maxTimeout time.Duration
+	withSound  bool
+}
+
+// NewDeWinter creates a DeWinter struct that plays sound
+func NewDeWinter(maxTimeout time.Duration) *DeWinter {
+	return &DeWinter{maxTimeout: maxTimeout, withSound: true}
+}
+
+// NewMutedDeWinter creates a DeWinter struct that is muted
+func NewMutedDeWinter() *DeWinter {
+	return &DeWinter{}
+}
+
 // DisplayText displays text as it should be in motus (lingo) game.
-func DisplayText(txt string, okCount, outOfPlaceCount int) error {
+// If the DeWinter timeout is reached once, ErrNoSound is returned and the sound is disable for this displayer.
+func (d *DeWinter) DisplayText(txt string, okCount, outOfPlaceCount int) error {
+
+	var ret error = nil
 
 	if txt == "" {
-		return nil
+		return ret
 	}
 
 	if okCount < 0 {
@@ -74,27 +97,43 @@ func DisplayText(txt string, okCount, outOfPlaceCount int) error {
 
 	fmt.Printf("%v\r", aurora.White(txt).BgBlue())
 
-	var d aurora.Value
+	var buf *beep.Buffer
+	var bgFunc func(arg interface{}) aurora.Value
 
 	for i, c := range txt {
 		switch mask[i] {
 		case ok:
-			playSound(bufferOK)
-			d = aurora.White(string(c)).BgRed()
+			buf = bufferOK
+			bgFunc = aurora.BgRed
 		case outOfPlace:
-			playSound(bufferOOP)
-			d = aurora.White(string(c)).BgYellow()
+			buf = bufferOOP
+			bgFunc = aurora.BgYellow
 		case out:
-			playSound(bufferKO)
-			d = aurora.White(string(c)).BgBlue()
+			buf = bufferKO
+			bgFunc = aurora.BgBlue
 		}
-		fmt.Printf("%v", d)
+
+		if d.withSound {
+			err = playSound(buf, d.maxTimeout)
+			if err != nil {
+				d.withSound = false
+				ret = ErrNoSound
+			}
+		}
+
+		displayChar := bgFunc(aurora.White(string(c)))
+		fmt.Printf("%v", displayChar)
 		time.Sleep(50 * time.Millisecond)
 	}
 
 	fmt.Printf("\n")
 
-	return nil
+	return ret
+}
+
+// IsMuted returns true is DeWinter can't play sound.
+func (d *DeWinter) IsMuted() bool {
+	return !d.withSound
 }
 
 var (
@@ -159,7 +198,10 @@ func initBuffer(filePath string, initSpeaker bool) (*beep.Buffer, error) {
 	return ret, err
 }
 
-func playSound(buffer *beep.Buffer) {
+func playSound(buffer *beep.Buffer, timeout time.Duration) error {
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 
 	done := make(chan bool)
 
@@ -168,5 +210,10 @@ func playSound(buffer *beep.Buffer) {
 		done <- true
 	})))
 
-	<-done
+	select {
+	case <-done:
+		return nil
+	case <-timer.C:
+		return ErrNoSound
+	}
 }

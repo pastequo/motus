@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"time"
+
 	"github.com/pastequo/motus"
 	"github.com/spf13/cobra"
 )
@@ -16,7 +18,9 @@ var displayCmd = &cobra.Command{
 
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		return motus.DisplayText(txt, okCount, amissCount)
+		deWinter := motus.NewDeWinter(4 * time.Second)
+
+		return deWinter.DisplayText(txt, okCount, amissCount)
 	},
 }
 

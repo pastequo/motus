@@ -30,7 +30,7 @@ build.prepare:
 	@rm -f $(PWD)/target/$(NAME)
 
 build.cmd: build.prepare
-	GO111MODULE=on $(if $(IS_PACKR_CMD),packr2,go) build -mod=vendor $(BUILD_ARGS) -ldflags "-X github.com/pastequo/motus/cli/dewinter/cmd.GitCommitID=$(GIT_COMMIT) -s -w" -o $(PWD)/target/$(NAME) ./cli/dewinter/main.go
+	GO111MODULE=on $(if $(IS_PACKR_CMD),packr2,go) build -mod=vendor $(BUILD_ARGS) -ldflags "-X github.com/pastequo/motus/cli/motus/cmd.GitCommitID=$(GIT_COMMIT) -s -w" -o $(PWD)/target/$(NAME) ./cli/motus/main.go
 
 build.local: build.cmd
 
@@ -66,7 +66,8 @@ AMISS_COUNT=2
 .PHONY: run.local run.version
 
 run.local:
-	$(PWD)/target/$(NAME) display -t $(TXT) -o $(OK_COUNT) -a $(AMISS_COUNT)
+	$(PWD)/target/$(NAME) display -t "$(TXT)" -o $(OK_COUNT) -a $(AMISS_COUNT)
 
 run.version:
 	$(PWD)/target/$(NAME) version
+
